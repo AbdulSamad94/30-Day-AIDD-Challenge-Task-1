@@ -1,0 +1,14 @@
+
+[project]
+name = "chainlit-gemini-chatbot"
+version = "0.1.0"
+description = "A personal chatbot with memory using Chainlit and Gemini."
+authors = [{ name = "Your Name", email = "your.email@example.com" }]
+requires-python = ">=3.9"
+dependencies = [
+    "chainlit",
+    "openai-agents",
+    "python-dotenv",
+    "pypdf",
+]
+
