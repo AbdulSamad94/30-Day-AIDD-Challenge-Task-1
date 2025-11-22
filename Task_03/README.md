@@ -16,6 +16,6 @@
 
 ## **Part B**
 
-![latest version screenshot](img.PNG)
+![latest version screenshot](img.png)
 
 (It Automatically installed the latest version..).
