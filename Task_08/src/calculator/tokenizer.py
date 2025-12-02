@@ -1,15 +1,16 @@
 import re
 
+
 class Tokenizer:
     def __init__(self):
         self.tokens = []
         self.current_token_index = 0
         self.token_patterns = {
-            'NUMBER': r'\d+(\.\d*)?',
-            'OPERATOR': r'[\+\-\*/]',
-            'LPAREN': r'\\(',
-            'RPAREN': r'\\)',
-            'WHITESPACE': r'\s+'
+            "NUMBER": r"\d+(\.\d*)?",
+            "OPERATOR": r"[\+\-\*/]",
+            "LPAREN": r"\(",
+            "RPAREN": r"\)",
+            "WHITESPACE": r"\s+",
         }
         self.token_regex = self._compile_token_regex()
 
@@ -17,7 +18,9 @@ class Tokenizer:
         # Sort patterns by length in reverse to match longer patterns first (e.g., multi-char operators if any)
         # For now, all our patterns are single character or number patterns, so order doesn't strictly matter
         # but it's good practice for future extensions.
-        patterns = '|'.join(f'(?P<{name}>{pattern})' for name, pattern in self.token_patterns.items())
+        patterns = "|".join(
+            f"(?P<{name}>{pattern})" for name, pattern in self.token_patterns.items()
+        )
         return re.compile(patterns)
 
     def tokenize(self, expression):
@@ -27,12 +30,14 @@ class Tokenizer:
         while pos < len(expression):
             match = self.token_regex.match(expression, pos)
             if not match:
-                raise ValueError(f"Invalid character at position {pos}: {expression[pos]}")
+                raise ValueError(
+                    f"Invalid character at position {pos}: {expression[pos]}"
+                )
 
             token_type = match.lastgroup
             token_value = match.group(token_type)
 
-            if token_type != 'WHITESPACE':
+            if token_type != "WHITESPACE":
                 self.tokens.append((token_type, token_value))
 
             pos = match.end(0)
@@ -50,7 +55,8 @@ class Tokenizer:
             return token
         return None
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     tokenizer = Tokenizer()
 
     # Test cases
@@ -61,7 +67,7 @@ if __name__ == '__main__':
         "123",
         "  1 +   2 ",
         "2+3",
-        "10/0"
+        "10/0",
     ]
 
     for expr in expressions:

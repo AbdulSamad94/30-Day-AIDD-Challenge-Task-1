@@ -234,6 +234,7 @@ get_next_id() {
   done
   printf '%04d' $((max_id + 1))
 }
+source "$(dirname "$0")/common.sh"
 
 PHR_ID=$(get_next_id)
 TITLE_SLUG=$(slugify "$TITLE")

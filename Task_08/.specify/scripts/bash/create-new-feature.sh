@@ -67,10 +67,16 @@ if [ -z "$FEATURE_DESCRIPTION" ]; then
     exit 1
 fi
 
+#!/usr/bin/env bash
+
+# common.sh - Shared utility functions for specify scripts
+
 # Function to find the repository root by searching for existing project markers
-find_repo_root() {
-    local dir="$1"
-    while [ "$dir" != "/" ]; do
+# (This is the assumed content of get_repo_root as mentioned in the prompt)
+get_repo_root() {
+    local start_dir="${1:-.}"
+    local dir="$start_dir"
+    while [ "$dir" != "/" ] && [ -n "$dir" ]; do
         if [ -d "$dir/.git" ] || [ -d "$dir/.specify" ]; then
             echo "$dir"
             return 0
@@ -84,86 +90,48 @@ find_repo_root() {
 check_existing_branches() {
     local short_name="$1"
     
-    # Fetch all remotes to get latest branch info (suppress errors if no remotes)
     git fetch --all --prune 2>/dev/null || true
     
-    # Find all branches matching the pattern using git ls-remote (more reliable)
     local remote_branches=$(git ls-remote --heads origin 2>/dev/null | grep -E "refs/heads/[0-9]+-${short_name}$" | sed 's/.*\/\([0-9]*\)-.*/\1/' | sort -n)
-    
-    # Also check local branches
     local local_branches=$(git branch 2>/dev/null | grep -E "^[* ]*[0-9]+-${short_name}$" | sed 's/^[* ]*//' | sed 's/-.*//' | sort -n)
     
-    # Check specs directory as well
     local spec_dirs=""
-    if [ -d "$SPECS_DIR" ]; then
+    if [ -d "$SPECS_DIR" ]; then # SPECS_DIR is expected to be defined by the calling script
         spec_dirs=$(find "$SPECS_DIR" -maxdepth 1 -type d -name "[0-9]*-${short_name}" 2>/dev/null | xargs -n1 basename 2>/dev/null | sed 's/-.*//' | sort -n)
     fi
     
-    # Combine all sources and get the highest number
     local max_num=0
     for num in $remote_branches $local_branches $spec_dirs; do
-        if [ "$num" -gt "$max_num" ]; then
-            max_num=$num
+        num_val=$(echo "$num" | sed 's/^0*//') # Remove leading zeros for arithmetic comparison
+        if [ -n "$num_val" ] && [ "$num_val" -gt "$max_num" ]; then
+            max_num="$num_val"
         fi
     done
     
-    # Return next number
     echo $((max_num + 1))
 }
-
-# Resolve repository root. Prefer git information when available, but fall back
-# to searching for repository markers so the workflow still functions in repositories that
-# were initialised with --no-git.
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-if git rev-parse --show-toplevel >/dev/null 2>&1; then
-    REPO_ROOT=$(git rev-parse --show-toplevel)
-    HAS_GIT=true
-else
-    REPO_ROOT="$(find_repo_root "$SCRIPT_DIR")"
-    if [ -z "$REPO_ROOT" ]; then
-        echo "Error: Could not determine repository root. Please run this script from within the repository." >&2
-        exit 1
-    fi
-    HAS_GIT=false
-fi
-
-cd "$REPO_ROOT"
-
-SPECS_DIR="$REPO_ROOT/specs"
-mkdir -p "$SPECS_DIR"
 
 # Function to generate branch name with stop word filtering and length filtering
 generate_branch_name() {
     local description="$1"
     
-    # Common stop words to filter out
     local stop_words="^(i|a|an|the|to|for|of|in|on|at|by|with|from|is|are|was|were|be|been|being|have|has|had|do|does|did|will|would|should|could|can|may|might|must|shall|this|that|these|those|my|your|our|their|want|need|add|get|set)$"
-    
-    # Convert to lowercase and split into words
     local clean_name=$(echo "$description" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/ /g')
     
-    # Filter words: remove stop words and words shorter than 3 chars (unless they're uppercase acronyms in original)
     local meaningful_words=()
     for word in $clean_name; do
-        # Skip empty words
         [ -z "$word" ] && continue
-        
-        # Keep words that are NOT stop words AND (length >= 3 OR are potential acronyms)
         if ! echo "$word" | grep -qiE "$stop_words"; then
             if [ ${#word} -ge 3 ]; then
                 meaningful_words+=("$word")
             elif echo "$description" | grep -q "\b${word^^}\b"; then
-                # Keep short words if they appear as uppercase in original (likely acronyms)
                 meaningful_words+=("$word")
             fi
         fi
     done
     
-    # If we have meaningful words, use first 3-4 of them
     if [ ${#meaningful_words[@]} -gt 0 ]; then
-        local max_words=3
-        if [ ${#meaningful_words[@]} -eq 4 ]; then max_words=4; fi
+        local max_words=$(( ${#meaningful_words[@]} < 4 ? ${#meaningful_words[@]} : 4 ))
         
         local result=""
         local count=0
@@ -175,7 +143,6 @@ generate_branch_name() {
         done
         echo "$result"
     else
-        # Fallback to original logic if no meaningful words found
         echo "$description" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/-\+/-/g' | sed 's/^-//' | sed 's/-$//' | tr '-' '\n' | grep -v '^$' | head -3 | tr '\n' '-' | sed 's/-$//'
     fi
 }
